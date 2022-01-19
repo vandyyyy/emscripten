@@ -512,6 +512,7 @@ var LibraryPThread = {
   },
 
 #if MAIN_MODULE
+  $registerTlsInit__deps: ['$relocateExports', '$normalizeExports', '$updateGOT'],
   $registerTlsInit: function(tlsInitFunc, moduleExports, metadata) {
 #if DYLINK_DEBUG
     err("registerTlsInit: " + tlsInitFunc);
@@ -534,7 +535,9 @@ var LibraryPThread = {
       for (var sym in metadata.tlsExports) {
         metadata.tlsExports[sym] = moduleExports[sym];
       }
-      relocateExports(metadata.tlsExports, __tls_base, /*replace=*/true);
+      var normalized = normalizeExports(metadata.tlsExports);
+      var relocated = relocateExports(normalized, __tls_base);
+      updateGOT(relocated, /*replace=*/true);
     }
 
     // Register this function so that its gets called for each thread on

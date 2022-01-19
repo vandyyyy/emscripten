@@ -6149,8 +6149,7 @@ int main(int argc, char** argv) {
     def build_main(args):
       print(args)
       with env_modify({'EMCC_FORCE_STDLIBS': 'libc++abi'}):
-        self.run_process([EMXX, 'main.cpp', '-sMAIN_MODULE',
-                          '--embed-file', 'libside.wasm'] + args)
+        self.run_process([EMXX, 'main.cpp', '-sMAIN_MODULE=2', 'libside.wasm'] + args)
 
     build_main([])
     out = self.run_js('a.out.js', assert_returncode=NON_ZERO)
@@ -10799,7 +10798,7 @@ exec "$@"
       self.assertContained('ASan does not support dynamic linking', err)
 
   def test_wasm2js_no_dylink(self):
-    for arg in ['-sMAIN_MODULE', '-sSIDE_MODULE', '-sRELOCATABLE']:
+    for arg in ['-sSIDE_MODULE', '-sRELOCATABLE']:
       print(arg)
       err = self.expect_fail([EMCC, test_file('hello_world.c'), '-sWASM=0', arg])
       self.assertContained('WASM2JS is not compatible with relocatable output', err)
