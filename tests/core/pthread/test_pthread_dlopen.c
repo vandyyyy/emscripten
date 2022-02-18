@@ -24,14 +24,17 @@ static void* thread_main() {
   // Spin until the main thread has loaded the side module
   while (!ready) {}
 
-  // Without this explict sync we get "invalid index into function table" below
-  _emscripten_thread_sync_code();
+  // Without this explict yield we could "invalid index into function table"
+  // below because this thread might not have loaded the side module.
+  // Uncommend the calls to printf will also, in practice, end up loading
+  // the side module because internally they may end up wait on a lock.
+  sched_yield();
 
-  printf("calling p_side_data_address=%p\n", p_side_data_address);
+  //printf("calling p_side_data_address=%p\n", p_side_data_address);
   int* data_addr = p_side_data_address();
   assert(data_addr == expected_data_addr);
 
-  printf("calling p_side_func_address=%p\n", p_side_func_address);
+  //printf("calling p_side_func_address=%p\n", p_side_func_address);
   func_t func_addr = p_side_func_address();
   assert(expected_func_addr == func_addr);
   assert(func_addr() == 43);
