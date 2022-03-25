@@ -90,6 +90,35 @@ function runJSify(functionsOnly) {
     });
   }
 
+  function convertBigIntParams(snippet, sig) {
+    // Automatically convert any incoming pointer arguments from BigInt
+    // to double (this limits the range to int53).
+    // And convert the return value if the function returns a pointer.
+    return modifyFunction(snippet, (name, args, body) => {
+      let argNames = args.split(",");
+      let argConvertions = '';
+      for (let i = 1; i < sig.length; i++) {
+        if (sig[i] == 'p') {
+          argConvertions += `${argNames[i-1]} = Number(${argNames[i-1]})\n`;
+        }
+      }
+      if (sig[0] == 'p') {
+        return `\
+function ${name}(${args}) {
+  ${argConvertions}
+  var ret = ((${args}) => { ${body} })(${args});
+  return BigInt(ret);
+}`;
+      } else {
+        return `\
+function ${name}(${args}) {
+  ${argConvertions}
+  return ((${args}) => { ${body} })(${args});
+}`;
+      }
+    });
+  }
+
   function processLibraryFunction(snippet, ident, finalName) {
     // It is possible that when printing the function as a string on Windows, the js interpreter we are in returns the string with Windows
     // line endings \r\n. This is undesirable, since line endings are managed in the form \n in the output for binary file writes, so
@@ -109,6 +138,12 @@ function ${name}(${args}) {
   if (runtimeDebug && typeof ret != "undefined") err("  [     return:" + prettyPrint(ret));
   return ret;
 }`);
+    }
+    if (MEMORY64) {
+      const sig = LibraryManager.library[ident + '__sig'];
+      if (sig && sig.includes('p')) {
+        snippet = convertBigIntParams(snippet, sig);
+      }
     }
     return snippet;
   }
