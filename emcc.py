@@ -2435,21 +2435,6 @@ def phase_linker_setup(options, state, newargs, user_settings):
      sanitize:
     settings.REQUIRED_EXPORTS += ['malloc', 'free']
 
-  if not settings.DISABLE_EXCEPTION_CATCHING:
-    settings.REQUIRED_EXPORTS += [
-      # For normal builds the entries in deps_info.py are enough to include
-      # these symbols whenever __cxa_find_matching_catch_* functions are
-      # found.  However, under LTO these symbols don't exist prior to linking
-      # so we include then unconditionally when exceptions are enabled.
-      '__cxa_is_pointer_type',
-      '__cxa_can_catch',
-
-      # Emscripten exception handling can generate invoke calls, and they call
-      # setThrew(). We cannot handle this using deps_info as the invokes are not
-      # emitted because of library function usage, but by codegen itself.
-      'setThrew',
-    ]
-
   if settings.ASYNCIFY:
     if not settings.ASYNCIFY_IGNORE_INDIRECT:
       # if we are not ignoring indirect calls, then we must treat invoke_* as if
@@ -2520,10 +2505,38 @@ def phase_linker_setup(options, state, newargs, user_settings):
   if settings.WASMFS:
     settings.LINK_AS_CXX = True
 
+  # Some settings make no sense when not linking as C++
+  if settings.LINK_AS_CXX:
+    if not settings.DISABLE_EXCEPTION_CATCHING:
+      settings.REQUIRED_EXPORTS += [
+        # For normal builds the entries in deps_info.py are enough to include
+        # these symbols whenever __cxa_find_matching_catch_* functions are
+        # found.  However, under LTO these symbols don't exist prior to linking
+        # so we include then unconditionally when exceptions are enabled.
+        '__cxa_is_pointer_type',
+        '__cxa_can_catch',
+
+        # Emscripten exception handling can generate invoke calls, and they call
+        # setThrew(). We cannot handle this using deps_info as the invokes are not
+        # emitted because of library function usage, but by codegen itself.
+        'setThrew',
+      ]
+  else:
+    cxx_only_settings = [
+      'DEMANGLE_SUPPORT',
+      'EXCEPTION_DEBUG',
+      'DISABLE_EXCEPTION_CATCHING',
+      'EXCEPTION_CATCHING_ALLOWED',
+      'DISABLE_EXCEPTION_THROWING',
+    ]
+    for setting in cxx_only_settings:
+      if setting in user_settings:
+        exit_with_error('setting `%s` not allowed unless unless linking as C++' % setting)
+
   # Export tag objects which are likely needed by the native code, but which are
   # currently not reported in the metadata of wasm-emscripten-finalize
   if settings.RELOCATABLE:
-    if settings.EXCEPTION_HANDLING:
+    if settings.EXCEPTION_HANDLING and settings.LINK_AS_CXX:
       settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE.append('__cpp_exception')
     if settings.SUPPORT_LONGJMP == 'wasm':
       settings.DEFAULT_LIBRARY_FUNCS_TO_INCLUDE.append('__c_longjmp')

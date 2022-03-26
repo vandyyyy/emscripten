@@ -23,6 +23,8 @@ See docs/process.md for more on how version tagging works.
 - The `-sSHELL_FILE` setting, which (unlike the --shell-file command line
   options) we believe was never tested or externally used, has been removed.
   (#16589)
+- It is now an error to pass C++-only setting such
+  `-sEXCEPTION_CATCHING_ALLOWED` unless linking as C++. (#16609)
 
 3.1.8 - 03/24/2022
 ------------------
